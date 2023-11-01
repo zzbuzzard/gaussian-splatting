@@ -7,7 +7,8 @@ import subprocess
 import shutil
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-d", "--data_dir", type=str, required=True, help="Directory containing all scenes")
+parser.add_argument("-t", "--train_dir", type=str, required=True, help="Directory containing scenes to train with")
+parser.add_argument("-r", "--render_dir", type=str, required=True, help="Directory containing scenes to render")
 parser.add_argument("-s", "--scenes", nargs="+", type=str, required=True, help="Which scenes in the data directory to use")
 parser.add_argument("-i", "--iters", nargs="+", type=int, required=True, help="Iterations to sample")
 parser.add_argument("-o", "--out", type=str, required=True, help="Location to store the resulting dataset")
@@ -30,13 +31,13 @@ def train_cmd(data_path, model_out, iters, train_args):
 
 def render_cmds(data_path, model_out, iters, render_args):
     for i in iters:
-        yield f"python render.py -m {model_out} --iteration {i} -s {data_path} --eval" + " " + render_args
+        yield f"python render.py -m {model_out} --iteration {i} -s {data_path}" + " " + render_args
 
 
 if __name__ == "__main__":
     args = parser.parse_args()
 
-    for p in os.listdir(args.data_dir):
+    for p in os.listdir(args.train_dir):
         if p not in args.scenes:
             continue
         print()
@@ -44,8 +45,9 @@ if __name__ == "__main__":
         print(f"Processing scene '{p}'")
         print()
 
-        data_path = os.path.join(args.data_dir, p)  # contains test/train data
+        data_path = os.path.join(args.train_dir, p)  # contains test/train data
         model_path = os.path.join(args.model_out, p)
+        render_path = os.path.join(args.render_dir, p)
 
         os.makedirs(model_path, exist_ok=True)
 
@@ -63,7 +65,7 @@ if __name__ == "__main__":
             print("Training completed, beginning renders")
             print()
 
-        for cmd in render_cmds(data_path, model_path, args.iters, args.render_args):
+        for cmd in render_cmds(render_path, model_path, args.iters, args.render_args):
             print(f"Executing '{cmd}'")
             code = subprocess.call(cmd, shell=True)
             if code != 0:
