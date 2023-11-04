@@ -5,6 +5,9 @@ import torch.utils.data as dutils
 from typing import List
 from PIL import Image
 import os
+import argparse
+import shutil
+from tqdm import tqdm
 
 
 class NoisyDataset(dutils.Dataset):
@@ -13,8 +16,9 @@ class NoisyDataset(dutils.Dataset):
     Cropping and flipping are implemented without torch.transforms, as we have to make sure the same transformation
     is applied to the gt and rendered image.
     """
+
     def __init__(self, root_path: str, iters: List[int] = None, crop_size=(512, 512), flipx=True, flipy=True,
-                 transform=lambda x:x):
+                 transform=lambda x: x, scenes=None):
         def path_list(scene, test_or_train, iters):
             x = "gt" if iters is None else f"render_{iters}"
             path = os.path.join(root_path, scene, x, test_or_train)
@@ -39,6 +43,9 @@ class NoisyDataset(dutils.Dataset):
         # [a2, b2, c2]
 
         for scene in os.listdir(root_path):
+            # If scenes is specified, skip scene if not in the list
+            if scenes is not None and scene not in scenes:
+                continue
             gt_paths += path_list(scene, "train", None)
             gt_paths += path_list(scene, "test", None)
 
@@ -97,7 +104,44 @@ class NoisyDataset(dutils.Dataset):
         return self.transform(gim), self.transform(rim)
 
 
+if __name__ == "__main__":
+    # Used as a script, this file converts a dataset into a test/train split
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--input", type=str, help="Dataset root")
+    parser.add_argument("-o", "--output", type=str, help="Location to store dataset subset")
+    parser.add_argument("-is", "--iters", type=int, nargs="+", help="List of iters to include", default=None)
+    parser.add_argument("-s", "--scenes", type=str, nargs="+", help="List of scenes to include", default=None)
+    parser.add_argument("-n", "--split_every_n", type=int, help="Every nth image is added to test", default=10)
 
+    args = parser.parse_args()
 
+    dataset = NoisyDataset(root_path=args.input,
+                           iters=args.iters,
+                           scenes=args.scenes)
+
+    out_gt = [os.path.join(args.output, "train", "gt"), os.path.join(args.output, "test", "gt")]
+    out_rn = [os.path.join(args.output, "train", "render"), os.path.join(args.output, "test", "render")]
+
+    os.makedirs(out_gt[0], exist_ok=True)
+    os.makedirs(out_gt[1], exist_ok=True)
+    os.makedirs(out_rn[0], exist_ok=True)
+    os.makedirs(out_rn[1], exist_ok=True)
+    n = len(dataset.render_paths[0])
+    if n > 1:
+        for i in range(n):
+            os.makedirs(os.path.join(out_rn[0], str(i)), exist_ok=True)
+            os.makedirs(os.path.join(out_rn[1], str(i)), exist_ok=True)
+
+    for i, path in tqdm(enumerate(dataset.gt_paths)):
+        ind = 1 if i % args.split_every_n == 0 else 0
+        path2 = os.path.join(out_gt[ind], f"{i}.png")
+        shutil.copy(path, path2)
+
+    for i, paths in tqdm(enumerate(dataset.render_paths)):
+        ind = 1 if i % args.split_every_n == 0 else 0
+        for j, path in enumerate(paths):
+            p = f"{j}/{i}.png" if n > 1 else f"{i}.png"
+            path2 = os.path.join(out_rn[ind], p)
+            shutil.copy(path, path2)
 
 
