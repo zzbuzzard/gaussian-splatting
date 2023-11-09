@@ -23,12 +23,12 @@ class NoisyDataset(dutils.Dataset):
         self.flipx = flipx
         self.flipy = flipy
 
-        assert os.path.isdir(root_path)
+        assert os.path.isdir(self.root_path)
 
-        gt_root = join(root_path, "gt")
+        gt_root = join(self.root_path, "gt")
         self.gt_paths = [join(gt_root, i) for i in os.listdir(gt_root)]
 
-        render_root = join(root_path, "render")
+        render_root = join(self.root_path, "render")
 
         d1 = os.listdir(render_root)[0]
 
