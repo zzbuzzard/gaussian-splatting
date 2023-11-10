@@ -86,7 +86,7 @@ class NoisyDataset(dutils.Dataset):
             rim = trf.vflip(rim)
             gim = trf.vflip(gim)
 
-        return gim, rim
+        return rim, gim
 
 
 def construct_subset_dataset(root_path: str, out_path: str, split_every_n: int, scale_to: Tuple[int, int], iters: List[int] = None, scenes=None):
