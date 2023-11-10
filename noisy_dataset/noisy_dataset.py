@@ -2,7 +2,7 @@ import torch
 from torchvision import transforms
 import torchvision.transforms.functional as trf
 import torch.utils.data as dutils
-from typing import List
+from typing import List, Tuple
 from PIL import Image
 import os
 from os.path import join
@@ -40,8 +40,8 @@ class NoisyDataset(dutils.Dataset):
                 paths.append([join(path, i) for i in os.listdir(path)])
             lengths = [len(i) for i in paths]
             assert len(set(lengths)) == 1, f"Directories in {render_root} have different file counts: {lengths}"
-            self.render_paths = zip(*lengths)
-            self.n = lengths[0]
+            self.render_paths = list(zip(*paths))
+            self.n = len(paths)
         # Single
         else:
             self.render_paths = [[join(render_root, i)] for i in os.listdir(render_root)]
@@ -89,12 +89,16 @@ class NoisyDataset(dutils.Dataset):
         return gim, rim
 
 
-def construct_subset_dataset(root_path: str, out_path: str, split_every_n: int, iters: List[int] = None, scenes=None):
+def construct_subset_dataset(root_path: str, out_path: str, split_every_n: int, scale_to: Tuple[int, int], iters: List[int] = None, scenes=None):
     """Create a 'subset' dataset containing only some scenes and iteration counts"""
     def path_list(scene, test_or_train, iters):
         x = "gt" if iters is None else f"render_{iters}"
         path = os.path.join(root_path, scene, x, test_or_train)
         return [os.path.join(path, i) for i in os.listdir(path)]
+
+    def cpy(src, dst):
+        im = Image.open(src).convert("RGB").resize(scale_to)
+        im.save(dst)
 
     assert os.path.isdir(root_path)
 
@@ -139,14 +143,16 @@ def construct_subset_dataset(root_path: str, out_path: str, split_every_n: int, 
     for i, path in tqdm(enumerate(gt_paths)):
         ind = 1 if i % split_every_n == 0 else 0
         path2 = os.path.join(out_gt[ind], f"{i}.png")
-        shutil.copy(path, path2)
+        # shutil.copy(path, path2)
+        cpy(path, path2)
 
     for i, paths in tqdm(enumerate(render_paths)):
         ind = 1 if i % split_every_n == 0 else 0
         for j, path in enumerate(paths):
             p = f"{j}/{i}.png" if n > 1 else f"{i}.png"
             path2 = os.path.join(out_rn[ind], p)
-            shutil.copy(path, path2)
+            # shutil.copy(path, path2)
+            cpy(path, path2)
 
 
 if __name__ == "__main__":
@@ -157,14 +163,18 @@ if __name__ == "__main__":
     parser.add_argument("-is", "--iters", type=int, nargs="+", help="List of iters to include", default=None)
     parser.add_argument("-s", "--scenes", type=str, nargs="+", help="List of scenes to include", default=None)
     parser.add_argument("-n", "--split_every_n", type=int, help="Every nth image is added to test", default=10)
+    parser.add_argument("-st", "--scale_to", type=int, nargs="+", help="Scale all images to this size", required=True)
 
     args = parser.parse_args()
+
+    assert len(args.scale_to) == 2, "--scale_to argmuent must be given two integers '[width] [height]'."
 
     construct_subset_dataset(root_path=args.input,
                              out_path=args.output,
                              iters=args.iters,
                              scenes=args.scenes,
-                             split_every_n=args.split_every_n)
+                             split_every_n=args.split_every_n,
+                             scale_to=tuple(args.scale_to))
 
 
 
