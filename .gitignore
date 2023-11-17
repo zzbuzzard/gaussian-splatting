@@ -12,3 +12,6 @@ diff_rasterization/diff_rast.egg-info
 diff_rasterization/dist
 tensorboard_3d
 screenshots
+noisy_dataset/resize_dir.py
+noisy_dataset/test.py
+small_train_splats

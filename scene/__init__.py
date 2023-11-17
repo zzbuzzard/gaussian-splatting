@@ -22,7 +22,7 @@ class Scene:
 
     gaussians : GaussianModel
 
-    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0]):
+    def __init__(self, args : ModelParams, gaussians : GaussianModel, load_iteration=None, shuffle=True, resolution_scales=[1.0], choose_random=None):
         """b
         :param path: Path to colmap scene main folder.
         """
@@ -65,6 +65,10 @@ class Scene:
         if shuffle:
             random.shuffle(scene_info.train_cameras)  # Multi-res consistent random shuffling
             random.shuffle(scene_info.test_cameras)  # Multi-res consistent random shuffling
+
+        if choose_random is not None:
+            while len(scene_info.train_cameras) > choose_random:
+                scene_info.train_cameras.pop(-1)
 
         self.cameras_extent = scene_info.nerf_normalization["radius"]
 
